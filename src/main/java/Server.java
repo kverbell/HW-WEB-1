@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,25 +17,23 @@ public class Server {
             "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html",
             "/classic.html", "/events.html", "/events.js");
     private final int port;
+    private final ConcurrentHashMap <String, Handler> handlers;
 
     public Server(int port) {
         this.port = port;
+        this.handlers = new ConcurrentHashMap<>();
     }
 
-    public static void main(String[] args) {
-        int port = 9999;
-        Server server = new Server(port);
-        server.start();
+    public void addHandler(String requestType, String path, Handler handler) {
+        handlers.put(requestType + " " + path, handler);
     }
 
     public void start() {
-
         ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 Socket socket = serverSocket.accept();
-
                 threadPool.execute(new Runnable() {
                     @Override
                     public void run() {
@@ -106,5 +105,3 @@ public class Server {
         }
     }
 }
-
-
