@@ -31,6 +31,8 @@ public class Server {
     public void start() {
         ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
+        System.out.println("Server start.");
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 Socket socket = serverSocket.accept();
@@ -43,21 +45,29 @@ public class Server {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+        threadPool.shutdown();
         }
     }
 
     private void handleConnection(Socket socket) {
+        int headerIndex = 3;
+
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
         ) {
             String requestLine = in.readLine();
             String[] parts = requestLine.split(" ");
 
-            if (parts.length != 3) {
+            if (parts.length < 3) {
                 return;
             }
 
-            String path = parts[1];
+            int requestTypeIndex = 0;
+            String requestType = parts[requestTypeIndex];
+
+            int pathIndex = 1;
+            String path = parts[pathIndex];
 
             if (!validPaths.contains(path)) {
                 out.write(("HTTP/1.1 404 Not Found\r\n" +
@@ -100,8 +110,65 @@ public class Server {
             ).getBytes());
             Files.copy(filePath, out);
             out.flush();
+
+            //заголовки
+            ConcurrentHashMap<String, String> headers = new ConcurrentHashMap<>();
+            if (parts.length > 3) {
+                do {
+                    String headerLine = parts[headerIndex];
+                    if (headerLine.isEmpty()) {
+                        break;
+                    }
+                    String[] headerParts = headerLine.split(": ");
+                    if (headerParts.length == 2) {
+                        headers.put(headerParts[0], headerParts[1]);
+                    } else {
+                        break;
+                    }
+                    headerIndex++;
+                } while (headerIndex < parts.length);
+            }
+
+            //тело запроса
+            StringBuilder requestBodyBuilder = new StringBuilder();
+
+            int contentLength = Integer.parseInt(headers.getOrDefault("Content-Length", "0"));
+            if (contentLength > 0) {
+                char[] buffer = new char[1024];
+                int bytesRead;
+                int totalBytesRead = 0;
+                while (totalBytesRead < contentLength && (bytesRead = in.read(buffer)) != -1) {
+                    requestBodyBuilder.append(buffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                }
+            }
+
+            String requestBody = requestBodyBuilder.toString();
+
+            Request request = new Request(requestType, path, headers, requestBody, mimeType);
+
+            BufferedOutputStream responseStream = new BufferedOutputStream(socket.getOutputStream());
+
+            responseStream.write(responseBuilder().getBytes());
+            responseStream.flush();
+
+            Handler handler = handlers.get(requestType + " " + path);
+            handler.handle(request, responseStream);
+
+
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
+
+    public String responseBuilder () {
+
+        String responseBody = "<h1>Hello!</h1>";
+        return "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: text/html\r\n" +
+                "Content-Length: " + responseBody.length() + "\r\n" +
+                "\r\n" +
+                responseBody;
+    }
+
 }
