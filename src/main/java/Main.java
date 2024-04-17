@@ -1,9 +1,9 @@
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class Main {
     public static void main(String[] args) {
@@ -16,7 +16,8 @@ public class Main {
             @Override
             public void handle(Request request, BufferedOutputStream responseStream) {
                 try {
-                    Path filePath = Paths.get(request.getPath());
+                    File file = new File(request.getPath());
+                    Path filePath = file.toPath();
                     byte[] contentBytes = Files.readAllBytes(filePath);
 
                     String headers = "HTTP/1.1 200 OK\r\n" +

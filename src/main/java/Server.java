@@ -69,6 +69,14 @@ public class Server {
             int pathIndex = 1;
             String path = parts[pathIndex];
 
+            String queryString = "";
+
+            if (path.contains("?")) {
+                String[] pathAndQuery = path.split("\\?");
+                path = pathAndQuery[0];
+                queryString = pathAndQuery[1];
+            }
+
             if (!validPaths.contains(path)) {
                 out.write(("HTTP/1.1 404 Not Found\r\n" +
                                 "Content-Length: 0\r\n" +
@@ -145,7 +153,7 @@ public class Server {
 
             String requestBody = requestBodyBuilder.toString();
 
-            Request request = new Request(requestType, path, headers, requestBody, mimeType);
+            Request request = new Request(requestType, path, headers, requestBody, mimeType, queryString);
 
             BufferedOutputStream responseStream = new BufferedOutputStream(socket.getOutputStream());
 
@@ -153,6 +161,7 @@ public class Server {
             responseStream.flush();
 
             Handler handler = handlers.get(requestType + " " + path);
+
             handler.handle(request, responseStream);
 
 
