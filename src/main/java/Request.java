@@ -1,4 +1,9 @@
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
 public class Request {
     private final String requestType;
@@ -6,14 +11,20 @@ public class Request {
     private final ConcurrentHashMap<String, String> headers;
     private final String requestBody;
     private final String mimeType;
+    private final ConcurrentHashMap<String, List<String>> queryParams;
 
     public Request(String requestType, String path, ConcurrentHashMap<String, String> headers,
-                   String requestBody, String mimeType) {
+                   String requestBody, String mimeType, String queryString) {
         this.requestType = requestType;
         this.path = path;
-        this.headers = headers;
+        this.headers = new ConcurrentHashMap<>(headers);
         this.requestBody = requestBody;
         this.mimeType = mimeType;
+        if ("GET".equals(requestType)) {
+            this.queryParams = parseQueryString(queryString);
+        } else {
+            this.queryParams = new ConcurrentHashMap<>();
+        }
     }
 
     public String getRequestType() {
@@ -34,6 +45,23 @@ public class Request {
 
     public String getMimeType() {
         return mimeType;
+    }
+
+    public ConcurrentHashMap<String, List<String>> getQueryParams() {
+        return queryParams;
+    }
+
+    public String getQueryParam(String name) {
+        List<String> values = queryParams.get(name);
+        return values != null && !values.isEmpty() ? values.get(0) : null;
+    }
+
+    public ConcurrentHashMap<String, List<String>> parseQueryString(String queryString) {
+        List<NameValuePair> params = URLEncodedUtils.parse(queryString, StandardCharsets.UTF_8);
+        return (ConcurrentHashMap<String, List<String>>) params.stream()
+                .collect(Collectors.groupingBy(NameValuePair::getName,
+                        Collectors.mapping(NameValuePair::getValue, Collectors.toList())));
+
     }
 
 }
