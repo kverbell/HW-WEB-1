@@ -1,5 +1,6 @@
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.http.NameValuePair;
@@ -8,16 +9,16 @@ import org.apache.http.client.utils.URLEncodedUtils;
 public class Request {
     private final String requestType;
     private final String path;
-    private final ConcurrentHashMap<String, String> headers;
+    private final Map<String, String> headers;
     private final String requestBody;
     private final String mimeType;
     private final ConcurrentHashMap<String, List<String>> queryParams;
 
-    public Request(String requestType, String path, ConcurrentHashMap<String, String> headers,
+    public Request(String requestType, String path, Map<String, String> headers,
                    String requestBody, String mimeType, String queryString) {
         this.requestType = requestType;
         this.path = path;
-        this.headers = new ConcurrentHashMap<>(headers);
+        this.headers = headers;
         this.requestBody = requestBody;
         this.mimeType = mimeType;
         if ("GET".equals(requestType)) {
@@ -35,7 +36,7 @@ public class Request {
         return path;
     }
 
-    public ConcurrentHashMap<String, String> getHeaders() {
+    public Map<String, String> getHeaders() {
         return headers;
     }
 
@@ -56,12 +57,14 @@ public class Request {
         return values != null && !values.isEmpty() ? values.get(0) : null;
     }
 
-    public ConcurrentHashMap<String, List<String>> parseQueryString(String queryString) {
+    private ConcurrentHashMap<String, List<String>> parseQueryString(String queryString) {
         List<NameValuePair> params = URLEncodedUtils.parse(queryString, StandardCharsets.UTF_8);
-        return (ConcurrentHashMap<String, List<String>>) params.stream()
-                .collect(Collectors.groupingBy(NameValuePair::getName,
-                        Collectors.mapping(NameValuePair::getValue, Collectors.toList())));
-
+        return params.stream()
+                .collect(Collectors.groupingByConcurrent(
+                        NameValuePair::getName,
+                        ConcurrentHashMap::new,
+                        Collectors.mapping(NameValuePair::getValue, Collectors.toList())
+                ));
     }
 
 }
