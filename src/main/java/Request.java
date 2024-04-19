@@ -1,7 +1,7 @@
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -12,7 +12,7 @@ public class Request {
     private final Map<String, String> headers;
     private final String requestBody;
     private final String mimeType;
-    private final ConcurrentHashMap<String, List<String>> queryParams;
+    private final Map<String, List<String>> queryParams;
 
     public Request(String requestType, String path, Map<String, String> headers,
                    String requestBody, String mimeType, String queryString) {
@@ -24,7 +24,7 @@ public class Request {
         if ("GET".equals(requestType)) {
             this.queryParams = parseQueryString(queryString);
         } else {
-            this.queryParams = new ConcurrentHashMap<>();
+            this.queryParams = new HashMap<>();
         }
     }
 
@@ -48,7 +48,7 @@ public class Request {
         return mimeType;
     }
 
-    public ConcurrentHashMap<String, List<String>> getQueryParams() {
+    public Map<String, List<String>> getQueryParams() {
         return queryParams;
     }
 
@@ -57,12 +57,12 @@ public class Request {
         return values != null && !values.isEmpty() ? values.get(0) : null;
     }
 
-    private ConcurrentHashMap<String, List<String>> parseQueryString(String queryString) {
+    private Map<String, List<String>> parseQueryString(String queryString) {
         List<NameValuePair> params = URLEncodedUtils.parse(queryString, StandardCharsets.UTF_8);
         return params.stream()
-                .collect(Collectors.groupingByConcurrent(
+                .collect(Collectors.groupingBy(
                         NameValuePair::getName,
-                        ConcurrentHashMap::new,
+                        HashMap::new,
                         Collectors.mapping(NameValuePair::getValue, Collectors.toList())
                 ));
     }
